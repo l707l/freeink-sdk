@@ -54,6 +54,15 @@ void PowerManager::armWakeOnPins(uint64_t gpioMask, bool wakeLow) {
 }
 
 bool PowerManager::armPowerButtonWakeup() {
+#if FREEINK_DEVICE_SUPERMINI_S3_WEACT37
+  // All three buttons (GPIO 1, 2, 3) are RTC GPIOs on ESP32-S3.
+  // Wake on any button press (Active-LOW).
+  for (int8_t p : {1, 2, 3}) {
+    pinMode(p, INPUT_PULLUP);
+  }
+  armWakeOnPins((1ULL << 1) | (1ULL << 2) | (1ULL << 3), /*wakeLow=*/true);
+  return true;
+#else
   const int8_t pin = powerPin();
   if (pin < 0) return false;
   const bool activeHigh = powerActiveHigh();
@@ -62,9 +71,18 @@ bool PowerManager::armPowerButtonWakeup() {
   pinMode(pin, activeHigh ? INPUT_PULLDOWN : INPUT_PULLUP);
   armWakeOnPins(1ULL << pin, /*wakeLow=*/!activeHigh);
   return true;
+#endif
 }
 
 void PowerManager::waitForPowerButtonRelease() {
+#if FREEINK_DEVICE_SUPERMINI_S3_WEACT37
+  for (int8_t p : {1, 2, 3}) {
+    pinMode(p, INPUT_PULLUP);
+    while (digitalRead(p) == LOW) {
+      delay(50);
+    }
+  }
+#else
   const int8_t pin = powerPin();
   if (pin < 0) return;
   const bool activeHigh = powerActiveHigh();
@@ -74,6 +92,7 @@ void PowerManager::waitForPowerButtonRelease() {
   while (digitalRead(pin) == pressedLevel) {
     delay(50);
   }
+#endif
 }
 
 namespace {

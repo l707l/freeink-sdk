@@ -56,6 +56,9 @@
 #if FREEINK_DRIVER_PAPER_MONO
 #include "driver/PaperMonoDriver.h"
 #endif
+#if FREEINK_DRIVER_UC8253C
+#include "driver/Uc8253CDriver.h"
+#endif
 
 namespace freeink {
 namespace {
@@ -164,7 +167,9 @@ void FreeInkDisplay::selectDriver() {
         break;
       }
 #endif
-#if FREEINK_DRIVER_UC8279C
+#if FREEINK_DRIVER_UC8253C
+      _driver = &uc8253CDriver();
+#elif FREEINK_DRIVER_UC8279C
       _driver = &uc8279cA4Driver();
 #elif FREEINK_DRIVER_SSD1677
       _driver = &ssd1677Driver();

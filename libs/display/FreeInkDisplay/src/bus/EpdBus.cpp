@@ -155,6 +155,9 @@ void EpdBus::reset(uint16_t extraSettleMs) {
 }
 
 void EpdBus::cmd(uint8_t c) {
+  if (_coCs >= 0) {
+    digitalWrite(_coCs, HIGH);
+  }
   SPI.beginTransaction(_spi);
   digitalWrite(_pins.dc, LOW);
   digitalWrite(_pins.cs, LOW);
@@ -164,6 +167,9 @@ void EpdBus::cmd(uint8_t c) {
 }
 
 void EpdBus::data(uint8_t d) {
+  if (_coCs >= 0) {
+    digitalWrite(_coCs, HIGH);
+  }
   SPI.beginTransaction(_spi);
   digitalWrite(_pins.dc, HIGH);
   digitalWrite(_pins.cs, LOW);
@@ -173,6 +179,9 @@ void EpdBus::data(uint8_t d) {
 }
 
 void EpdBus::data(const uint8_t* d, uint16_t len) {
+  if (_coCs >= 0) {
+    digitalWrite(_coCs, HIGH);
+  }
   SPI.beginTransaction(_spi);
   digitalWrite(_pins.dc, HIGH);
   digitalWrite(_pins.cs, LOW);
@@ -182,6 +191,9 @@ void EpdBus::data(const uint8_t* d, uint16_t len) {
 }
 
 void EpdBus::cmdData(uint8_t c, const uint8_t* d, uint16_t len) {
+  if (_coCs >= 0) {
+    digitalWrite(_coCs, HIGH);
+  }
   SPI.beginTransaction(_spi);
   digitalWrite(_pins.cs, LOW);
   digitalWrite(_pins.dc, LOW);

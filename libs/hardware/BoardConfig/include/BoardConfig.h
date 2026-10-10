@@ -82,6 +82,12 @@
 #ifndef FREEINK_DEVICE_METALIO_EINK4
 #define FREEINK_DEVICE_METALIO_EINK4 0
 #endif
+#if defined(BOARD_SUPERMINI_S3_WEACT37) && BOARD_SUPERMINI_S3_WEACT37 && !defined(FREEINK_DEVICE_SUPERMINI_S3_WEACT37)
+#define FREEINK_DEVICE_SUPERMINI_S3_WEACT37 1
+#endif
+#ifndef FREEINK_DEVICE_SUPERMINI_S3_WEACT37
+#define FREEINK_DEVICE_SUPERMINI_S3_WEACT37 0
+#endif
 #if FREEINK_DEVICE_METALIO_EINK4
 #include "MetalioEInk4Board.h"
 #endif
@@ -90,9 +96,10 @@
 #if !(FREEINK_DEVICE_X4 || FREEINK_DEVICE_X3 || FREEINK_DEVICE_X4PRO || FREEINK_DEVICE_X4CLASSIC || FREEINK_DEVICE_M5 || \
       FREEINK_DEVICE_MURPHY || FREEINK_DEVICE_DELINK || FREEINK_DEVICE_LILYGO || FREEINK_DEVICE_M5PAPER ||               \
       FREEINK_DEVICE_STICKY || FREEINK_DEVICE_PAPERMONO || FREEINK_DEVICE_PAPERS3 || FREEINK_DEVICE_MURPHY_M4 ||         \
-      FREEINK_DEVICE_EEGO_A4 || FREEINK_DEVICE_ONEPAGE || FREEINK_DEVICE_WS397 || FREEINK_DEVICE_METALIO_EINK4)
+      FREEINK_DEVICE_EEGO_A4 || FREEINK_DEVICE_ONEPAGE || FREEINK_DEVICE_WS397 || FREEINK_DEVICE_METALIO_EINK4 ||       \
+      FREEINK_DEVICE_SUPERMINI_S3_WEACT37)
 #error \
-    "FreeInk: no device selected. Pass at least one -DFREEINK_DEVICE_<NAME> (X4, X3, X4PRO, X4CLASSIC, M5, MURPHY, DELINK, LILYGO, M5PAPER, STICKY, PAPERMONO, PAPERS3, MURPHY_M4, EEGO_A4, ONEPAGE, WS397, METALIO_EINK4) in your build env — see platformio.sample.ini."
+    "FreeInk: no device selected. Pass at least one -DFREEINK_DEVICE_<NAME> (X4, X3, X4PRO, X4CLASSIC, M5, MURPHY, DELINK, LILYGO, M5PAPER, STICKY, PAPERMONO, PAPERS3, MURPHY_M4, EEGO_A4, ONEPAGE, WS397, METALIO_EINK4, SUPERMINI_S3_WEACT37) in your build env — see platformio.sample.ini."
 #endif
 // Each device belongs to one MCU family; a binary targets exactly one. X3/X4 are
 // ESP32-C3; M5 PaperColor/Murphy/de-link/LilyGo are ESP32-S3; M5Paper v1.1 is the
@@ -103,7 +110,8 @@
 #define FREEINK_MCU_S3                                                                                    \
   (FREEINK_DEVICE_M5 || FREEINK_DEVICE_MURPHY || FREEINK_DEVICE_DELINK || FREEINK_DEVICE_LILYGO ||        \
    FREEINK_DEVICE_STICKY || FREEINK_DEVICE_X4PRO || FREEINK_DEVICE_X4CLASSIC || FREEINK_DEVICE_PAPERMONO ||  \
-   FREEINK_DEVICE_PAPERS3 || FREEINK_DEVICE_MURPHY_M4 || FREEINK_DEVICE_EEGO_A4 || FREEINK_DEVICE_WS397 || FREEINK_DEVICE_METALIO_EINK4)
+   FREEINK_DEVICE_PAPERS3 || FREEINK_DEVICE_MURPHY_M4 || FREEINK_DEVICE_EEGO_A4 || FREEINK_DEVICE_WS397 || FREEINK_DEVICE_METALIO_EINK4 || \
+   FREEINK_DEVICE_SUPERMINI_S3_WEACT37)
 #define FREEINK_MCU_ESP32 (FREEINK_DEVICE_M5PAPER)
 #if (FREEINK_MCU_C3 + FREEINK_MCU_C61 + FREEINK_MCU_S3 + FREEINK_MCU_ESP32) != 1
 #error \
@@ -170,6 +178,11 @@
 #define FREEINK_DRIVER_UC8253_MURPHY 1
 #else
 #define FREEINK_DRIVER_UC8253_MURPHY 0
+#endif
+#if FREEINK_DEVICE_SUPERMINI_S3_WEACT37
+#define FREEINK_DRIVER_UC8253C 1
+#else
+#define FREEINK_DRIVER_UC8253C 0
 #endif
 // LilyGo T5 S3 and M5Stack PaperS3: raw-parallel ED047TC1 via LovyanGFX (M5GFX).
 // External-bus driver; each board injects its own bus pins/power in an
@@ -412,6 +425,7 @@ enum class Board : uint8_t {
   OnePage,    // OnePage: ESP32-C61, SSD1677 800x480 SPI panel, 4-key ADC ladder + 3 side keys
   WsEpaper397,  // Waveshare ESP32-S3-ePaper-3.97: SSD1677 800x480, 3 keys + BOOT, AXP2101 PMIC
   MetalioEInk4,  // ESP32-S3, GDEM0397T81, CST816S, TCA9555
+  SuperMiniS3WeAct37,  // ESP32-S3 SuperMini + WeAct 3.7" E-Paper (UC8253C)
 };
 
 // How the board reports button presses.
@@ -445,7 +459,8 @@ enum class DisplayController : uint8_t {
   IT8951 = 5,
   UC8279 = 6,
   UC8179 = 7,
-  UC8279C = 8  // EEGO A4 768x552 sibling of the UC8279 family (Uc8279cA4Driver)
+  UC8279C = 8,  // EEGO A4 768x552 sibling of the UC8279 family (Uc8279cA4Driver)
+  UC8253C = 9   // WeAct 3.7" UC8253C 240x416 driver (Uc8253CDriver)
 };
 
 // Optional capacitive touch controller.
@@ -1875,6 +1890,44 @@ constexpr BoardProfile ONEPAGE = {
 static_assert(ONEPAGE.displayWidth / 8 * ONEPAGE.displayHeight == 48000,
               "OnePage framebuffer must be 48,000 bytes (800/8 x 480)");
 
+// --- ESP32-S3 SuperMini + WeAct 3.7" E-Paper (UC8253C) + SPI MicroSD ---
+constexpr BoardProfile SUPERMINI_S3_WEACT37 = {
+    Board::SuperMiniS3WeAct37,
+    "supermini_s3_weact37",
+    InputStyle::DigitalConfirmBackHold,
+    DisplayController::UC8253C,
+    // Native portrait 240x416 panel geometry
+    240,
+    416,
+    // Display SPI: SCLK 10, MOSI 12, CS 4, DC 5, RST 6, BUSY 7, powerEnable PIN_UNASSIGNED
+    {10, 12, 4, 5, 6, 7, PIN_UNASSIGNED},
+    10000000,  // displaySpiHz: 10MHz (UC8253C limit)
+    // MicroSD (shared SPI bus): SCLK 10, MISO 11, MOSI 12, CS 8, powerEnable PIN_UNASSIGNED, separateSpi false, spiHz 10MHz, powerActiveHigh true
+    {10, 11, 12, 8, PIN_UNASSIGNED, false, 10000000, true},
+    // Input: BTN_PREV=1 (up), BTN_NEXT=2 (down), BTN_MENU=3 (confirm/back/power)
+    {3, 3, PIN_UNASSIGNED, PIN_UNASSIGNED, 1, 2, 3, false},
+    PIN_UNASSIGNED,  // batteryAdc: none
+    PIN_UNASSIGNED,  // batteryChargeStatus: none
+    2.0f,            // batteryDividerMultiplier
+    PIN_UNASSIGNED,  // usbDetect: native S3 USB
+    NO_TOUCH,
+    NO_FRONTLIGHT,
+    NO_AUDIO,
+    NO_LEDS,
+    NO_FLIP,  // Standard GxEPD2 orientation (UD=1, SHL=1)
+    NO_SDMMC,
+    NO_GAUGE,
+    NO_MIC,
+    NO_SENSORS,
+    1.0f,            // uiScale: 1.0
+    {},              // power (no power latches)
+    0,               // displayControllerVariant
+    {0, 0, 0, 0},    // viewableInsets: full frame
+    false};          // batteryChargeStatusActiveHigh: false
+
+static_assert(SUPERMINI_S3_WEACT37.displayWidth / 8 * SUPERMINI_S3_WEACT37.displayHeight == 12480,
+              "SuperMini S3 WeAct 3.7 framebuffer must be 12,480 bytes (240/8 x 416)");
+
 // Largest framebuffer (bytes) over the devices compiled into this build, derived
 // from the profiles above. The display facade sizes its static framebuffer to
 // this so one binary holds whichever panel is runtime-selected; a single-device
@@ -1899,13 +1952,16 @@ constexpr uint32_t MAX_FRAMEBUFFER_BYTES = cmax(
                         FREEINK_DEVICE_MURPHY_M4 ? panelBytes(MURPHY_M4) : 0u),
                    cmax(cmax(FREEINK_DEVICE_EEGO_A4 ? panelBytes(EEGO_A4) : 0u,
                              FREEINK_DEVICE_ONEPAGE ? panelBytes(ONEPAGE) : 0u),
-                        cmax(FREEINK_DEVICE_WS397 ? panelBytes(WS_EPAPER_397) : 0u,
-                             FREEINK_DEVICE_METALIO_EINK4 ? panelBytes(METALIO_EINK4) : 0u))))));
+                        cmax(cmax(FREEINK_DEVICE_WS397 ? panelBytes(WS_EPAPER_397) : 0u,
+                                  FREEINK_DEVICE_METALIO_EINK4 ? panelBytes(METALIO_EINK4) : 0u),
+                             FREEINK_DEVICE_SUPERMINI_S3_WEACT37 ? panelBytes(SUPERMINI_S3_WEACT37) : 0u))))));
 
 // Compile-time default device — the profile ACTIVE starts as. With a single
 // device in the build this is the only device; with several same-MCU devices it
 // is the boot default until the consumer calls selectDevice().
-#if FREEINK_DEVICE_METALIO_EINK4
+#if FREEINK_DEVICE_SUPERMINI_S3_WEACT37
+constexpr BoardProfile DEFAULT_DEVICE = SUPERMINI_S3_WEACT37;
+#elif FREEINK_DEVICE_METALIO_EINK4
 constexpr BoardProfile DEFAULT_DEVICE = METALIO_EINK4;
 #elif FREEINK_DEVICE_WS397
 constexpr BoardProfile DEFAULT_DEVICE = WS_EPAPER_397;
@@ -2042,6 +2098,11 @@ inline bool selectDevice(Board which) {
       ACTIVE = WS_EPAPER_397;
       break;
 #endif
+#if FREEINK_DEVICE_SUPERMINI_S3_WEACT37
+    case Board::SuperMiniS3WeAct37:
+      ACTIVE = SUPERMINI_S3_WEACT37;
+      break;
+#endif
     default:
       return false;
   }
@@ -2066,6 +2127,7 @@ inline bool isEegoA4() { return ACTIVE.board == Board::EegoA4; }
 inline bool isMetalioEInk4() { return ACTIVE.board == Board::MetalioEInk4; }
 inline bool isOnePage() { return ACTIVE.board == Board::OnePage; }
 inline bool isWsEpaper397() { return ACTIVE.board == Board::WsEpaper397; }
+inline bool isSuperMiniS3WeAct37() { return ACTIVE.board == Board::SuperMiniS3WeAct37; }
 inline bool hasTouch() { return ACTIVE.touch.controller != TouchController::None; }
 inline bool hasHomeKey() { return ACTIVE.touch.hasHomeKey; }
 inline bool hasPwmFrontlight() { return ACTIVE.frontlight.gpio != PIN_UNASSIGNED || ACTIVE.frontlight.viaPm1Pwm; }

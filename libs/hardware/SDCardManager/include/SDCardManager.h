@@ -38,6 +38,8 @@ class SDCardManager {
   // scans the FAT and is too slow to call on every frame). 0 if not mounted or
   // the cluster count cannot be determined.
   uint64_t sdUsedBytes();
+  uint8_t lastErrorCode() const { return _lastErrorCode; }
+  uint8_t lastErrorData() const { return _lastErrorData; }
   std::vector<String> listFiles(const char* path = "/", int maxFiles = 200);
   // Read the entire file at `path` into a String. Returns empty string on failure.
   String readFile(const char* path);
@@ -120,6 +122,8 @@ class SDCardManager {
   uint64_t cachedUsedBytes = 0;
   uint32_t cachedUsedBytesAt = 0;
   bool cachedUsedBytesValid = false;
+  uint8_t _lastErrorCode = 0;
+  uint8_t _lastErrorData = 0;
 
   // All filesystem ops route through one FsVolume& so the backend is swappable.
   // SPI boards: `sd` (SdFs is-a FsVolume). SDMMC boards: a bare FsVolume mounted

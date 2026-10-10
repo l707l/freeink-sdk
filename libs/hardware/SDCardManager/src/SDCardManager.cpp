@@ -12,6 +12,19 @@
 #include <PaperMonoBoard.h>
 #endif
 
+#ifdef SD_CS
+#undef SD_CS
+#endif
+#ifdef SD_SCLK
+#undef SD_SCLK
+#endif
+#ifdef SD_MOSI
+#undef SD_MOSI
+#endif
+#ifdef SD_MISO
+#undef SD_MISO
+#endif
+
 SDCardManager SDCardManager::instance;
 
 #if FREEINK_SD_SDMMC
@@ -171,23 +184,52 @@ bool SDCardManager::begin() {
   } else {
 #endif
     if (SD_SCLK >= 0 && SD_MOSI >= 0 && SD_MISO >= 0) {
+      pinMode(SD_MISO, INPUT_PULLUP);
       SPI.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
     }
-    // Other boards keep the single attempt so a missing card fails fast.
-    const int attempts = BoardConfig::isOnePage() ? 5 : 1;
-    for (int attempt = 0; attempt < attempts; ++attempt) {
-      cardReady = sd.begin(SD_CS, SPI_FQ);
-      if (cardReady || attempt + 1 == attempts) break;
-      delay(80);
+    const uint32_t freqs[] = {SPI_FQ, 10000000, 4000000};
+    for (uint32_t fq : freqs) {
+      for (int attempt = 0; attempt < 3; ++attempt) {
+        cardReady = sd.begin(SD_CS, fq);
+        if (cardReady) break;
+
+        // If card responded on SPI (err == NONE) but volume mount failed,
+        // it may be a GPT-partitioned card. Try mounting at standard 1MB-aligned offset (LBA 2048).
+        if (sd.sdErrorCode() == 0 && sd.card()) {
+          if (vol().begin(sd.card(), true, 0, 2048)) {
+            cardReady = true;
+            if (Serial) Serial.printf("[%lu] [SD] Mounted volume at LBA 2048 (GPT/aligned)\n", millis());
+            break;
+          }
+          // Parse GPT header if present to find partition 1 starting LBA
+          uint8_t sectorBuf[512];
+          if (sd.card()->readSector(1, sectorBuf) && memcmp(sectorBuf, "EFI PART", 8) == 0) {
+            uint64_t entryLba = *reinterpret_cast<const uint64_t*>(&sectorBuf[72]);
+            if (entryLba != 0 && sd.card()->readSector(static_cast<Sector_t>(entryLba), sectorBuf)) {
+              uint64_t startLba = *reinterpret_cast<const uint64_t*>(&sectorBuf[32]);
+              if (startLba != 0 && vol().begin(sd.card(), true, 0, static_cast<Sector_t>(startLba))) {
+                cardReady = true;
+                if (Serial) Serial.printf("[%lu] [SD] Mounted volume via GPT header at LBA %llu\n", millis(), (unsigned long long)startLba);
+                break;
+              }
+            }
+          }
+        }
+        delay(60);
+      }
+      if (cardReady) break;
     }
 #if FREEINK_MCU_S3 || FREEINK_MCU_ESP32
   }
 #endif
 
+  _lastErrorCode = sd.sdErrorCode();
+  _lastErrorData = sd.sdErrorData();
+
   if (!cardReady) {
     if (Serial)
       Serial.printf("[%lu] [SD] SD card not detected (err=0x%02X data=0x%02X cs=%d sclk=%d miso=%d mosi=%d clk=%luHz)\n",
-                    millis(), sd.sdErrorCode(), sd.sdErrorData(), SD_CS, SD_SCLK,
+                    millis(), _lastErrorCode, _lastErrorData, SD_CS, SD_SCLK,
                     SD_MISO, SD_MOSI, (unsigned long)SPI_FQ);
     initialized = false;
     cachedTotalBytes = 0;
